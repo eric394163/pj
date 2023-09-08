@@ -1,0 +1,173 @@
+body{
+    margin: 0px 0px;
+    padding: 0px;
+    background-color: #F3F0EB;
+}
+section{
+    margin: 0 auto;
+    width: 700px;
+    height: 700px;
+    background-color: #FAF8F4;
+    margin-top: 150px;
+    position: relative;
+}
+section img{
+    margin-top: 10%;
+    margin-left: 27%;
+    margin-bottom: 10%;
+}
+input{
+    margin-left: 13%;
+    width: 500px;
+    height: 50px;
+    font-size: 20px;
+    background-color: #FAF8F4;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-color: #DEDED3;
+}
+input:focus{
+    outline-style: none;
+}
+input::placeholder{
+    color:#000000a1
+}
+form p{
+    position: absolute;
+    right: 15%;
+}
+form p > a{
+    text-decoration: none;
+    font-size: 14px;
+    color: #6C6B69;
+}
+#login_btn button{
+    width: 505px;
+    height: 70px;
+    background-color: #000000;
+    text-align: center;
+    position: absolute;
+    top: 63%;
+    left: 13%;
+    color: white;
+    font-family: '맑은 고딕';
+    font-size: 20px;
+    border: none;
+}
+#login_btn button:hover{
+    background-color: #1e5142;
+    border: #1e5142;
+}
+#easy{
+    position: absolute;
+    top: 83%;
+    left: 13%;
+    font-weight: bold;
+    color: #6C6B69;
+}
+#kakao{
+    position: absolute;
+    top: 73%;
+    left: 20%;
+    width: 60px;
+    height: 60px;
+}
+#naver{
+    position: absolute;
+    top: 73%;
+    left: 30%;
+    width: 60px;
+    height: 60px;
+}
+#facebook{
+    position: absolute;
+    top: 73%;
+    left: 40%;
+    width: 60px;
+    height: 60px;
+}
+#google{
+    position: absolute;
+    top: 73%;
+    left: 50%;
+    width: 60px;
+    height: 60px;
+}
+
+
+#register_btn button {
+    width: 505px;
+    height: 70px;
+    background-color: #000000;
+    text-align: center;
+    position: absolute;
+    top: 63%;
+    left: 13%;
+    color: white;
+    font-family: '맑은 고딕';
+    font-size: 20px;
+    border: none;
+}
+#register_btn button:hover {
+    background-color: #1e5142;
+    border: #1e5142;
+}
+
+
+
+#chat_container {
+    margin: 0 auto;
+    width: 700px;
+    height: 700px;
+    background-color: #FAF8F4;
+    position: relative;
+    border-radius: 5px;
+}
+
+#chat_header {
+    background-color: #000000;
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+#chat_messages {
+    height: 80%;
+    padding: 10px;
+    overflow-y: scroll;
+    border-bottom: 1px solid #DEDED3;
+}
+
+#chat_input_container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 10px;
+}
+
+#chat_input {
+    width: 80%;
+    padding: 10px;
+    border: 1px solid #DEDED3;
+    border-radius: 5px;
+}
+
+#send_btn {
+    width: 18%;
+    height: 50px;
+    background-color: #000000;
+    color: white;
+    font-size: 20px;
+    border: none;
+    border-radius: 5px;
+    margin-left: 2%;
+    cursor: pointer;
+}
+
+#send_btn:hover {
+    background-color: #1e5142;
+}

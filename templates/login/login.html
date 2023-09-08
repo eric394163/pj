@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <title>로그인</title>
+    <link rel="stylesheet" href="/static/Stylesheet.css">
+</head>
+<body>
+    <main>
+        <section>
+            <img src="/static/Login.png">
+            <form action="/loginProcess" method="POST">
+                <input type="text" id="id" name="id" placeholder="아이디" required>
+                <input type="password" id="password" name="password" placeholder="비밀번호" required>
+                <div id="login_btn"><button type="submit">로그인</button></div>
+                <p>• <a href="/register">회원가입</a> • </p>
+                <div id="login_btn"><button type="submit">로그인</button></div>
+                <p id="easy">간편 로그인</p>
+                <a href="https://accounts.kakao.com/"><img id="kakao" src="/static/easy-kakao.png"></a>
+                <a href="https://nid.naver.com/"><img id="naver" src="/static/easy-naver.png"></a>
+                <a href="https://www.facebook.com/login"><img id="facebook" src="/static/easy-facebook.png"></a>
+                <a href="https://www.google.com/accounts"><img id="google" src="/static/easy-google.png"></a>
+            </form>
+        </section>
+        
+    </main>
+    
+</body>    
+</html>
