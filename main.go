@@ -5,6 +5,7 @@ import (
 	"gopjex/dbcon"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 	"text/template"
@@ -24,8 +25,14 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func DBConnection() (*dbcon.DBConnection, error) {
+	// 환경 변수에서 값 읽기
+	DB_USER := os.Getenv("DB_USER")
+	DB_PASS := os.Getenv("DB_PASS")
+	DB_HOST := os.Getenv("DB_HOST")
+	DB_NAME := os.Getenv("DB_NAME")
+
 	dbc := dbcon.NewConnection()
-	err := dbc.Open("KSH", "kshi1122@@", "localhost:3306", "gopj")
+	err := dbc.Open(DB_USER, DB_PASS, DB_HOST, DB_NAME)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +63,6 @@ func main() {
 			http.Error(w, "Failed to register", http.StatusInternalServerError)
 			return
 		}
-		// 성공하면 리다이렉트
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	})
 
@@ -89,7 +95,7 @@ func main() {
 		// 로그인 성공 하면 auth 쿠키 설정
 		authCookie := &http.Cookie{
 			Name:  "auth",
-			Value: username, 
+			Value: username,
 			Path:  "/",
 		}
 		http.SetCookie(w, authCookie)

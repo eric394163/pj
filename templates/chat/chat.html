@@ -3,27 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 채팅</title>
-    <link rel="stylesheet" href="/static/Stylesheet.css">
-    
+    <title>실시간 채팅 웹 애플리케이션</title>
+    <link rel="stylesheet" href="/static/Styleheetchat.css">
 </head>
 <body>
-    <main>
-        <section>
-            <div id="chat_container">
-                <div id="chat_header">
-                    <h3>실시간 채팅</h3>
-                </div>
-                <div id="chat_messages">
-                    <!-- 채팅 메시지 출력되는 곳 -->
-                </div>
-                <div id="chat_input_container">
-                    <input type="text" id="chat_input" placeholder="메시지 입력...">
-                    <button id="send_btn">전송</button>
-                </div>
+    <div id="title">실시간 채팅 웹 애플리케이션</div>
+    <div class="wrapper">
+        <!-- 사용자 정보 및 접속자 목록 영역 -->
+        <div id="sidebar">
+            <!-- 사용자 정보 영역 -->
+            <div id="user-info">
+                <h3>사용자 정보</h3>
+                <p>이름: 홍길동</p>
+                <p>이메일: hong@example.com</p>
             </div>
-        </section>
-        
-    </main>
+            <!-- 현재 접속중인 사용자 목록 -->
+            <div id="active-users">
+                <h3>접속 중인 사용자</h3>
+                <ul>
+                    <li>유저1</li>
+                    <li>유저2</li>
+                </ul>
+            </div>
+        </div>
+        <!-- 채팅방 영역 -->
+        <div id="chat-container">
+            <div id="chat-display">
+                <ul id="chat-messages">
+                    <!-- 메시지가 이곳에 추가됩니다 -->
+                </ul>
+            </div>
+            <div id="chat-input-container">
+                <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
+                <button onclick="sendMessage()">전송</button>
+            </div>
+        </div>
+        <div class="spacer"></div> <!-- 채팅방 우측 공간 -->
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>
