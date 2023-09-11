@@ -56,7 +56,7 @@ func main() {
 			http.Error(w, "Failed to register", http.StatusInternalServerError)
 			return
 		}
-		// 성공한 경우, 원하는 페이지로 리다이렉트하거나 메시지 표시
+		// 성공하면 리다이렉트
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	})
 
@@ -86,15 +86,15 @@ func main() {
 			http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
 			return
 		}
-		// 로그인 성공 후 "auth" 쿠키 설정
+		// 로그인 성공 하면 auth 쿠키 설정
 		authCookie := &http.Cookie{
 			Name:  "auth",
-			Value: username, // 예시: 사용자 이름을 값으로 설정. 실제로는 세션 ID나 다른 값을 사용해야 할 수도 있습니다.
+			Value: username, 
 			Path:  "/",
 		}
 		http.SetCookie(w, authCookie)
 
-		// 로그인 성공 시, chat.html로 리다이렉트
+		// 로그인 성공 하면 chat.html 리다이렉트
 		http.Redirect(w, r, "/chat", http.StatusSeeOther)
 
 	})

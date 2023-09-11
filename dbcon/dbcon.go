@@ -12,12 +12,12 @@ type DBConnection struct {
 	Conn *sql.DB
 }
 
-// NewConnection 함수는 새로운 데이터베이스 연결 생섬함
+//새로운 데이터베이스 연결 생섬
 func NewConnection() *DBConnection {
 	return &DBConnection{}
 }
 
-// 데이터베이스에 연결
+// 데이터베이스 연결
 func (dbc *DBConnection) Open(username, password, host, databasename string) error {
 	//데이터베이스 연결 설정
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s", username, password, host, databasename)
@@ -35,14 +35,14 @@ func (dbc *DBConnection) Open(username, password, host, databasename string) err
 	return nil
 }
 
-// 데이터베이스 연결을 닫기
+// 데이터베이스 연결 닫기
 func (dbc *DBConnection) Close() {
 	if dbc.Conn != nil {
 		dbc.Conn.Close()
 	}
 }
 
-// Query 함수는 주어진 쿼리를 실행하고 결과 행들을 반환합니다.
+//주어진 쿼리를 실행하고 결과 행 반환
 func (dbc *DBConnection) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	if dbc.Conn == nil {
 		return nil, fmt.Errorf("database connection is not initialized")
