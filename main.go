@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"gopjex/dbcon"
 	"log"
 	"net/http"
@@ -9,7 +10,11 @@ import (
 	"path/filepath"
 	"sync"
 	"text/template"
+
+	"github.com/gorilla/websocket"
 )
+
+var mainRoom = newRoom()
 
 type templateHandler struct {
 	once     sync.Once
@@ -39,18 +44,31 @@ func DBConnection() (*dbcon.DBConnection, error) {
 	return dbc, nil
 }
 
+func handleChat(w http.ResponseWriter, r *http.Request) {
+	if websocket.IsWebSocketUpgrade(r) {
+		go mainRoom.run()
+		mainRoom.ServeHTTP(w, r)
+	} else {
+		MustAuth(&templateHandler{filename: "chat/chat.html"}).ServeHTTP(w, r)
+	}
+}
+
 func main() {
+
+	go mainRoom.run()
+
+	var addr = flag.String("addr", ":8180", "The addr of the application.")
+	flag.Parse()
 
 	dbc, err := DBConnection()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer dbc.Close()
-
+	http.HandleFunc("/chat", handleChat)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	http.Handle("/login", &templateHandler{filename: "login/login.html"})
 	http.Handle("/register", &templateHandler{filename: "register/register.html"})
-	http.Handle("/chat", MustAuth(&templateHandler{filename: "chat/chat.html"}))
 	http.HandleFunc("/processRegister", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		name := r.FormValue("name")
@@ -105,8 +123,8 @@ func main() {
 
 	})
 
-	log.Println("Starting web Server on : 8180")
-	if err := http.ListenAndServe(":8180", nil); err != nil {
+	log.Println("Starting web Server on:", *addr)
+	if err := http.ListenAndServe(*addr, nil); err != nil {
 		log.Fatal("Listen and Serve :", err)
 	}
 }
