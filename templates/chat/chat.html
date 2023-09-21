@@ -31,7 +31,7 @@
         <div id="chat-container">
             <div id="chat-display">
                 <ul id="chat-messages">
-                    <!-- 메시지가 이곳에 추가됩니다 -->
+                    <!-- 메시지 영역 -->
                 </ul>
             </div>
             <div id="chat-input-container">
@@ -42,7 +42,7 @@
         <div class="spacer"></div> <!-- 채팅방 우측 공간 -->
     </div>
     <script>
-       $(document).ready(function() {
+    $(document).ready(function() {
     const SERVER_URL = "ws://localhost:8180/chat";
     
     let socket = new WebSocket(SERVER_URL);
@@ -84,6 +84,28 @@
             sendMessage();
         }
     });
+
+    //접속중인 유저 실시간 확인 
+
+    socket.onmessage = function(event) {
+    let incomingMessage = JSON.parse(event.data);
+    
+    if (incomingMessage.type === 'userListUpdate') {
+        updateActiveUsers(incomingMessage.users);
+    } else {
+        // 기존 메시지 처리
+        chatMessages.append($('<li>').text(incomingMessage.content));
+    }
+    };
+
+    function updateActiveUsers(users) {
+        let userList = $("#active-users ul");
+        userList.empty();
+        
+        users.forEach(function(user) {
+            userList.append($('<li>').text(user));
+        });
+    }
 });
 
     </script>
