@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var name = main
+var sss int
 var mainRoom = newRoom()
 
 type templateHandler struct {
