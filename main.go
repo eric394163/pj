@@ -6,6 +6,7 @@ import (
 	"gopjex/dbcon"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -14,7 +15,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var sss int
 var mainRoom = newRoom()
 
 type templateHandler struct {
@@ -91,12 +91,12 @@ func main() {
 		password := r.FormValue("password")
 
 		// 데이터베이스에서 해당 아이디의 사용자 정보 가져옴
-		row := dbc.QueryRow("SELECT password FROM users WHERE username=?", username)
+		row := dbc.QueryRow("SELECT password, name, email FROM users WHERE username=?", username)
 
-		// 데이터베이스에서 가져온 비밀번호를 저장할 변수
-		var storedPassword string
+		// 데이터베이스에서 가져온 데이터를 저장할 변수
+		var storedPassword, name, email string
 
-		err := row.Scan(&storedPassword)
+		err := row.Scan(&storedPassword, &name, &email)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
@@ -117,6 +117,18 @@ func main() {
 			Value: username,
 			Path:  "/",
 		}
+		nameCookie := &http.Cookie{
+			Name:  "name",
+			Value: url.QueryEscape(name),
+			Path:  "/",
+		}
+		emailCookie := &http.Cookie{
+			Name:  "email",
+			Value: url.QueryEscape(email),
+			Path:  "/",
+		}
+		http.SetCookie(w, nameCookie)
+		http.SetCookie(w, emailCookie)
 		http.SetCookie(w, authCookie)
 
 		// 로그인 성공 하면 chat.html 리다이렉트

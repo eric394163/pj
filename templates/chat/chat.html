@@ -10,28 +10,21 @@
 <body>
     <div id="title">실시간 채팅 웹 애플리케이션</div>
     <div class="wrapper">
-        <!-- 사용자 정보 및 접속자 목록 영역 -->
         <div id="sidebar">
-            <!-- 사용자 정보 영역 -->
             <div id="user-info">
                 <h3>사용자 정보</h3>
-                <p>이름: 홍길동</p>
-                <p>이메일: hong@example.com</p>
+                <p id="user-name">이름: 로딩 중...</p>
+                <p id="user-email">이메일: 로딩 중...</p>
             </div>
-            <!-- 현재 접속중인 사용자 목록 -->
             <div id="active-users">
                 <h3>접속 중인 사용자</h3>
                 <ul>
-                    <li>유저1</li>
-                    <li>유저2</li>
                 </ul>
             </div>
         </div>
-        <!-- 채팅방 영역 -->
         <div id="chat-container">
             <div id="chat-display">
                 <ul id="chat-messages">
-                    <!-- 메시지 영역 -->
                 </ul>
             </div>
             <div id="chat-input-container">
@@ -39,76 +32,80 @@
                 <button onclick="sendMessage()">전송</button>
             </div>
         </div>
-        <div class="spacer"></div> <!-- 채팅방 우측 공간 -->
+        <div class="spacer"></div>
     </div>
     <script>
+    function getCookie(cname) {
+        const cookieArr = document.cookie.split("; ");
+        for (let i = 0; i < cookieArr.length; i++) {
+            const cookiePair = cookieArr[i].split("=");
+            if (cname === cookiePair[0]) {
+                return decodeURIComponent(cookiePair[1]);
+            }
+        }
+        return "";
+    }
+
     $(document).ready(function() {
-    const SERVER_URL = "ws://localhost:8180/chat";
-    
-    let socket = new WebSocket(SERVER_URL);
-    let chatInput = $("#chat-input");
-    let chatMessages = $("#chat-messages");
+        const SERVER_URL = "ws://localhost:8180/chat";
+        let socket = new WebSocket(SERVER_URL);
+        let chatInput = $("#chat-input");
+        let chatMessages = $("#chat-messages");
+        let activeUsers = $("#active-users ul");
 
-    socket.onopen = function(event) {
-        console.log("Connected to the WebSocket server:", SERVER_URL);
-    };
+        const userName = getCookie("name");
+        const userEmail = getCookie("email");
 
-    socket.onmessage = function(event) {
-        let incomingMessage = event.data;
-        console.log("Received WebSocket message:", incomingMessage);
-        chatMessages.append($('<li>').text(incomingMessage));
-    };
-
-    socket.onclose = function(event) {
-        if (event.wasClean) {
-            console.log(`Connection closed cleanly, code=${event.code}, reason=${event.reason}`);
+        if (userName) {
+            $("#user-name").text(`이름: ${userName}`);
         } else {
-            console.error("Connection died");
+            $("#user-name").text("이름: 정보 없음");
         }
-    };
 
-    socket.onerror = function(error) {
-        console.error(`WebSocket Error: ${error}`);
-    };
-
-    window.sendMessage = function() {
-        let message = chatInput.val();
-        if (message) {
-            socket.send(message);
-            chatInput.val("");
+        if (userEmail) {
+            $("#user-email").text(`이메일: ${userEmail}`);
+        } else {
+            $("#user-email").text("이메일: 정보 없음");
         }
-    };
 
-    chatInput.on('keypress', function(e) {
-        if (e.keyCode == 13) {
-            sendMessage();
-        }
-    });
+        socket.onopen = function(event) {
+            console.log("Connected to the WebSocket server:", SERVER_URL);
+        };
 
-    //접속중인 유저 실시간 확인 
+        socket.onmessage = function(event) {
+            let incomingData = JSON.parse(event.data);
+            if (incomingData.type === 'chat') {
+                chatMessages.append($('<li>').text(incomingData.message));
+            } else if (incomingData.type === 'userList') {
+                activeUsers.empty();
+                incomingData.users.forEach(function(user) {
+                    activeUsers.append($('<li>').text(user));
+                });
+            }
+        };
 
-    socket.onmessage = function(event) {
-    let incomingMessage = JSON.parse(event.data);
-    
-    if (incomingMessage.type === 'userListUpdate') {
-        updateActiveUsers(incomingMessage.users);
-    } else {
-        // 기존 메시지 처리
-        chatMessages.append($('<li>').text(incomingMessage.content));
-    }
-    };
+        socket.onclose = function(event) {
+            console.log(`Connection closed, code=${event.code}, reason=${event.reason}`);
+        };
 
-    function updateActiveUsers(users) {
-        let userList = $("#active-users ul");
-        userList.empty();
-        
-        users.forEach(function(user) {
-            userList.append($('<li>').text(user));
+        socket.onerror = function(error) {
+            console.error(`WebSocket Error: ${error}`);
+        };
+
+        window.sendMessage = function() {
+            let message = chatInput.val();
+            if (message) {
+                socket.send(JSON.stringify({ type: 'chat', message: message }));
+                chatInput.val("");
+            }
+        };
+
+        chatInput.on('keypress', function(e) {
+            if (e.keyCode === 13) {
+                sendMessage();
+            }
         });
-    }
-});
-
+    });
     </script>
-    
 </body>
 </html>

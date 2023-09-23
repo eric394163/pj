@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -12,6 +13,8 @@ type room struct {
 	join    chan *client
 	leave   chan *client
 	clients map[*client]bool
+
+	onlineUsers map[string]bool
 }
 
 func newRoom() *room {
@@ -21,6 +24,29 @@ func newRoom() *room {
 		join:    make(chan *client),
 		leave:   make(chan *client),
 		clients: make(map[*client]bool),
+
+		onlineUsers: make(map[string]bool),
+	}
+}
+
+func (r *room) broadcastUserList() {
+	userList := make([]string, 0, len(r.onlineUsers))
+	for user := range r.onlineUsers {
+		userList = append(userList, user)
+	}
+
+	userListJSON, err := json.Marshal(map[string]interface{}{
+		"type":  "userList",
+		"users": userList,
+	})
+
+	if err != nil {
+		log.Printf("Error marshalling user list: %v", err)
+		return
+	}
+
+	for client := range r.clients {
+		client.send <- userListJSON
 	}
 }
 
@@ -28,20 +54,19 @@ func (r *room) run() {
 	for {
 		select {
 		case client := <-r.join:
-
 			r.clients[client] = true
+			r.onlineUsers[client.id] = true
+			r.broadcastUserList()
 
 		case client := <-r.leave:
-
 			delete(r.clients, client)
+			delete(r.onlineUsers, client.id)
 			close(client.send)
+			r.broadcastUserList()
 
 		case msg := <-r.forward:
-
 			for client := range r.clients {
-				log.Printf("Sending message to client: %v", client)
 				client.send <- msg
-
 			}
 		}
 	}
@@ -65,10 +90,20 @@ func (r *room) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		log.Fatal("ServeHTTP:", err)
 		return
 	}
+
+	authCookie, err := req.Cookie("auth")
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID := authCookie.Value
+
 	client := &client{
 		socket: socket,
 		send:   make(chan []byte, messageBufferSize),
 		room:   r,
+		id:     userID,
 	}
 	r.join <- client
 	defer func() { r.leave <- client }()

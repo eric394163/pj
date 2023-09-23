@@ -7,13 +7,10 @@ import (
 )
 
 type client struct {
-
-
 	socket *websocket.Conn
-
-	send chan []byte
-
-	room *room
+	send   chan []byte
+	room   *room
+	id     string
 }
 
 func (c *client) read() {
