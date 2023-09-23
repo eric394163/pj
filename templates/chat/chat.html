@@ -16,7 +16,7 @@
                 <p id="user-name">이름: 로딩 중...</p>
                 <p id="user-email">이메일: 로딩 중...</p>
             </div>
-            <div id="active-users">
+            <div id="online-Users">
                 <h3>접속 중인 사용자</h3>
                 <ul>
                 </ul>
@@ -35,6 +35,7 @@
         <div class="spacer"></div>
     </div>
     <script>
+        
     function getCookie(cname) {
         const cookieArr = document.cookie.split("; ");
         for (let i = 0; i < cookieArr.length; i++) {
@@ -51,21 +52,17 @@
         let socket = new WebSocket(SERVER_URL);
         let chatInput = $("#chat-input");
         let chatMessages = $("#chat-messages");
-        let activeUsers = $("#active-users ul");
+        let onlineUsers = $("#online-Users ul");
 
         const userName = getCookie("name");
         const userEmail = getCookie("email");
 
         if (userName) {
             $("#user-name").text(`이름: ${userName}`);
-        } else {
-            $("#user-name").text("이름: 정보 없음");
         }
 
         if (userEmail) {
             $("#user-email").text(`이메일: ${userEmail}`);
-        } else {
-            $("#user-email").text("이메일: 정보 없음");
         }
 
         socket.onopen = function(event) {
@@ -77,9 +74,9 @@
             if (incomingData.type === 'chat') {
                 chatMessages.append($('<li>').text(incomingData.message));
             } else if (incomingData.type === 'userList') {
-                activeUsers.empty();
+                onlineUsers.empty();
                 incomingData.users.forEach(function(user) {
-                    activeUsers.append($('<li>').text(user));
+                    onlineUsers.append($('<li>').text(user));
                 });
             }
         };
