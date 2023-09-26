@@ -36,7 +36,7 @@ body {
     gap: 10px;
 }
 
-#user-info, #active-users {
+#user-info, #online-Users {
     border: 1px solid #DEDED3;
     padding: 10px;
     background-color: #FAF8F4;
@@ -93,4 +93,18 @@ body {
 
 #send_btn:hover {
     background-color: #1e5142;
+}
+
+#logout-btn {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background-color: #FF4C4C; /* 빨간색 배경 */
+    color: #FFFFFF; /* 흰색 글씨 */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#logout-btn:hover {
+    background-color: #FF6C6C; /* 버튼에 마우스를 올렸을 때의 배경색 */
 }
