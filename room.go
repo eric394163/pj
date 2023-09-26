@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -57,6 +58,15 @@ func (r *room) run() {
 			r.clients[client] = true
 			r.onlineUsers[client.id] = true
 			r.broadcastUserList()
+
+			joinMessage := fmt.Sprintf("%s님이 채팅방에 접속하였습니다.", client.id)
+			joinMessageJSON, _ := json.Marshal(map[string]interface{}{
+				"type":    "system",
+				"message": joinMessage,
+			})
+			for otherClient := range r.clients {
+				otherClient.send <- joinMessageJSON
+			}
 
 		case client := <-r.leave:
 			delete(r.clients, client)

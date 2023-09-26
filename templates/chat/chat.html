@@ -68,11 +68,10 @@
         }
 
         $("#logout-btn").click(function() {
-        // 여기서 로그아웃 처리를 합니다. 예를 들면, 쿠키를 삭제하고 로그인 페이지로 리다이렉트하는 등의 작업을 할 수 있습니다.
         document.cookie = "auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         document.cookie = "name=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         document.cookie = "email=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        window.location.href = "/login"; // 로그인 페이지로 리다이렉트합니다. 실제 로그인 페이지의 경로에 따라 수정이 필요할 수 있습니다.
+        window.location.href = "/login";
         });
 
         socket.onopen = function(event) {
@@ -92,10 +91,12 @@
         if (incomingData.type === 'chat') {
             chatMessages.append('<div>' + incomingData.username + ": " + incomingData.message + '</div>');
         } else if (incomingData.type === 'userList') {
-            onlineUsersDiv.empty(); // 이 부분을 수정합니다.
+            onlineUsersDiv.empty(); 
             incomingData.users.forEach(function(user) {
-                onlineUsersDiv.append('<div>' + user + '</div>'); // 이 부분을 수정합니다.
+                onlineUsersDiv.append('<div>' + user + '</div>'); 
             });
+        }else if (incomingData.type === 'system') { // 시스템 메시지 처리
+            chatMessages.append('<div class="system-message">' + incomingData.message + '</div>');
         }
         };
 
