@@ -54,6 +54,15 @@ func DBConnection() (*dbcon.DBConnection, error) {
 	return dbc, nil
 }
 
+func handleChat(w http.ResponseWriter, r *http.Request) {
+	if websocket.IsWebSocketUpgrade(r) {
+		go mainRoom.run()
+		mainRoom.ServeHTTP(w, r)
+	} else {
+		MustAuth(&templateHandler{filename: "chat/chat.html"}).ServeHTTP(w, r)
+	}
+}
+
 func main() {
 
 	go mainRoom.run()
