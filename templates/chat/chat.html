@@ -5,32 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>실시간 채팅 웹 애플리케이션</title>
     <link rel="stylesheet" href="/static/Styleheetchat.css">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 <body>
     <div id="title">실시간 채팅 웹 애플리케이션</div>
     <div class="wrapper">
-        <!-- 사용자 정보 및 접속자 목록 영역 -->
         <div id="sidebar">
-            <!-- 사용자 정보 영역 -->
             <div id="user-info">
                 <h3>사용자 정보</h3>
-                <p>이름: 홍길동</p>
-                <p>이메일: hong@example.com</p>
+                <p id="user-name">이름: 로딩 중...</p>
+                <p id="user-email">이메일: 로딩 중...</p>
             </div>
-            <!-- 현재 접속중인 사용자 목록 -->
-            <div id="active-users">
+            <div id="online-Users">
                 <h3>접속 중인 사용자</h3>
                 <ul>
-                    <li>유저1</li>
-                    <li>유저2</li>
                 </ul>
             </div>
         </div>
-        <!-- 채팅방 영역 -->
         <div id="chat-container">
             <div id="chat-display">
                 <ul id="chat-messages">
-                    <!-- 메시지가 이곳에 추가됩니다 -->
                 </ul>
             </div>
             <div id="chat-input-container">
@@ -38,8 +32,77 @@
                 <button onclick="sendMessage()">전송</button>
             </div>
         </div>
-        <div class="spacer"></div> <!-- 채팅방 우측 공간 -->
+        <div class="spacer"></div>
     </div>
-    <script src="script.js"></script>
+    <script>
+        
+    function getCookie(cname) {
+        const cookieArr = document.cookie.split("; ");
+        for (let i = 0; i < cookieArr.length; i++) {
+            const cookiePair = cookieArr[i].split("=");
+            if (cname === cookiePair[0]) {
+                return decodeURIComponent(cookiePair[1]);
+            }
+        }
+        return "";
+    }
+
+    $(document).ready(function() {
+        const SERVER_URL = "ws://localhost:8180/chat";
+        let socket = new WebSocket(SERVER_URL);
+        let chatInput = $("#chat-input");
+        let chatMessages = $("#chat-messages");
+        let onlineUsers = $("#online-Users ul");
+
+        const userName = getCookie("name");
+        const userEmail = getCookie("email");
+
+        if (userName) {
+            $("#user-name").text(`이름: ${userName}`);
+        }
+
+        if (userEmail) {
+            $("#user-email").text(`이메일: ${userEmail}`);
+        }
+
+        socket.onopen = function(event) {
+            console.log("Connected to the WebSocket server:", SERVER_URL);
+        };
+
+        socket.onmessage = function(event) {
+            let incomingData = JSON.parse(event.data);
+            if (incomingData.type === 'chat') {
+                chatMessages.append($('<li>').text(incomingData.username + " : " + incomingData.message));
+            } else if (incomingData.type === 'userList') {
+                onlineUsers.empty();
+                incomingData.users.forEach(function(user) {
+                    onlineUsers.append($('<li>').text(user));
+                });
+            }
+        };
+
+        socket.onclose = function(event) {
+            console.log(`Connection closed, code=${event.code}, reason=${event.reason}`);
+        };
+
+        socket.onerror = function(error) {
+            console.error(`WebSocket Error: ${error}`);
+        };
+
+        window.sendMessage = function() {
+            let message = chatInput.val();
+            if (message) {
+                socket.send(JSON.stringify({ type: 'chat', message: message }));
+                chatInput.val("");
+            }ad
+        };
+
+        chatInput.on('keypress', function(e) {
+            if (e.keyCode === 13) {
+                sendMessage();
+            }
+        });
+    });
+    </script>
 </body>
 </html>
