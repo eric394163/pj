@@ -59,7 +59,7 @@ func (r *room) run() {
 			r.onlineUsers[client.id] = true
 			r.broadcastUserList()
 
-			joinMessage := fmt.Sprintf("%s님이 채팅방에 접속하였습니다.", client.id)
+			joinMessage := fmt.Sprintf("%s님이 채팅방에 접속했습니다.", client.id)
 			joinMessageJSON, _ := json.Marshal(map[string]interface{}{
 				"type":    "system",
 				"message": joinMessage,

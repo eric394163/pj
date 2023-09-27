@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"gopjex/dbcon"
 	"log"
 	"net/http"
 	"net/url"
@@ -12,10 +11,15 @@ import (
 	"sync"
 	"text/template"
 
+	"gopjex/dbcon"
+
 	"github.com/gorilla/websocket"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var mainRoom = newRoom()
+var ismainRoomRunning = false
 
 type templateHandler struct {
 	once     sync.Once
@@ -30,17 +34,7 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.templ.Execute(w, nil)
 }
 
-func handleChat(w http.ResponseWriter, r *http.Request) {
-	if websocket.IsWebSocketUpgrade(r) {
-		go mainRoom.run()
-		mainRoom.ServeHTTP(w, r)
-	} else {
-		MustAuth(&templateHandler{filename: "chat/chat.html"}).ServeHTTP(w, r)
-	}
-}
-
 func DBConnection() (*dbcon.DBConnection, error) {
-	// 환경 변수에서 값 읽기
 	DB_USER := os.Getenv("DB_USER")
 	DB_PASS := os.Getenv("DB_PASS")
 	DB_HOST := os.Getenv("DB_HOST")
@@ -54,9 +48,106 @@ func DBConnection() (*dbcon.DBConnection, error) {
 	return dbc, nil
 }
 
-func main() {
+func handleRegister(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
+	r.ParseForm()
+	name := r.FormValue("name")
+	email := r.FormValue("email")
+	username := r.FormValue("id")
+	password := r.FormValue("password")
 
-	go mainRoom.run()
+	stmt, err := dbc.Conn.Prepare("INSERT INTO users (name, email, username, password) VALUES (?, ?, ?, ?)")
+	if err != nil {
+		log.Printf("Failed to prepare statement: %v", err)
+		http.Error(w, "Failed to register", http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
+	// 비밀번호 해싱
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Failed to hash password: %v", err)
+		http.Error(w, "Failed to register", http.StatusInternalServerError)
+		return
+	}
+	// 해시된 비밀번호를 데이터베이스에 저장
+	_, err = stmt.Exec(name, email, username, string(hashedPassword))
+	if err != nil {
+		log.Printf("Failed to insert into database: %v", err)
+		http.Error(w, "Failed to register", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func handleLogin(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
+	r.ParseForm()
+	username := r.FormValue("id")
+	password := r.FormValue("password")
+
+	stmt, err := dbc.Conn.Prepare("SELECT password, name, email FROM users WHERE username=?")
+	if err != nil {
+		log.Printf("Failed to prepare statement: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
+	var storedPassword, name, email string
+	err = stmt.QueryRow(username).Scan(&storedPassword, &name, &email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
+			return
+		}
+		log.Printf("Failed to get user data: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password))
+	if err != nil {
+		http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// 로그인 성공 하면 쿠키 설정
+	authCookie := &http.Cookie{
+		Name:  "auth",
+		Value: username,
+		Path:  "/",
+	}
+	nameCookie := &http.Cookie{
+		Name:  "name",
+		Value: url.QueryEscape(name),
+		Path:  "/",
+	}
+	emailCookie := &http.Cookie{
+		Name:  "email",
+		Value: url.QueryEscape(email),
+		Path:  "/",
+	}
+	http.SetCookie(w, nameCookie)
+	http.SetCookie(w, emailCookie)
+	http.SetCookie(w, authCookie)
+
+	// 로그인 성공 하면 chat.html 리다이렉트
+	http.Redirect(w, r, "/chat", http.StatusSeeOther)
+}
+
+func handleChat(w http.ResponseWriter, r *http.Request) {
+	if websocket.IsWebSocketUpgrade(r) {
+		if !ismainRoomRunning {
+			go mainRoom.run()
+			ismainRoomRunning = true
+		}
+		mainRoom.ServeHTTP(w, r)
+	} else {
+		MustAuth(&templateHandler{filename: "chat/chat.html"}).ServeHTTP(w, r)
+	}
+}
+
+func main() {
 
 	var addr = flag.String("addr", ":8180", "The addr of the application.")
 	flag.Parse()
@@ -66,74 +157,16 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer dbc.Close()
+
 	http.HandleFunc("/chat", handleChat)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	http.Handle("/login", &templateHandler{filename: "login/login.html"})
 	http.Handle("/register", &templateHandler{filename: "register/register.html"})
 	http.HandleFunc("/processRegister", func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
-		name := r.FormValue("name")
-		email := r.FormValue("email")
-		username := r.FormValue("id")
-		password := r.FormValue("password")
-		_, err := dbc.Query("INSERT INTO users (name, email, username, password) VALUES (?, ?, ?, ?)", name, email, username, password)
-		if err != nil {
-			log.Printf("Failed to insert into database: %v", err)
-			http.Error(w, "Failed to register", http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		handleRegister(w, r, dbc)
 	})
-
 	http.HandleFunc("/loginProcess", func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
-		username := r.FormValue("id")
-		password := r.FormValue("password")
-
-		// 데이터베이스에서 해당 아이디의 사용자 정보 가져옴
-		row := dbc.QueryRow("SELECT password, name, email FROM users WHERE username=?", username)
-
-		// 데이터베이스에서 가져온 데이터를 저장할 변수
-		var storedPassword, name, email string
-
-		err := row.Scan(&storedPassword, &name, &email)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
-				return
-			}
-			log.Printf("Failed to get user data: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		if password != storedPassword {
-			http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
-			return
-		}
-		// 로그인 성공 하면 auth 쿠키 설정
-		authCookie := &http.Cookie{
-			Name:  "auth",
-			Value: username,
-			Path:  "/",
-		}
-		nameCookie := &http.Cookie{
-			Name:  "name",
-			Value: url.QueryEscape(name),
-			Path:  "/",
-		}
-		emailCookie := &http.Cookie{
-			Name:  "email",
-			Value: url.QueryEscape(email),
-			Path:  "/",
-		}
-		http.SetCookie(w, nameCookie)
-		http.SetCookie(w, emailCookie)
-		http.SetCookie(w, authCookie)
-
-		// 로그인 성공 하면 chat.html 리다이렉트
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
-
+		handleLogin(w, r, dbc)
 	})
 
 	log.Println("Starting web Server on:", *addr)
