@@ -48,7 +48,7 @@ func DBConnection() (*dbcon.DBConnection, error) {
 	return dbc, nil
 }
 
-func handleRegister(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
+func Register(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	r.ParseForm()
 	name := r.FormValue("name")
 	email := r.FormValue("email")
@@ -80,7 +80,7 @@ func handleRegister(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnect
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-func handleLogin(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
+func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	r.ParseForm()
 	username := r.FormValue("id")
 	password := r.FormValue("password")
@@ -162,11 +162,12 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	http.Handle("/login", &templateHandler{filename: "login/login.html"})
 	http.Handle("/register", &templateHandler{filename: "register/register.html"})
+
 	http.HandleFunc("/processRegister", func(w http.ResponseWriter, r *http.Request) {
-		handleRegister(w, r, dbc)
+		Register(w, r, dbc)
 	})
-	http.HandleFunc("/loginProcess", func(w http.ResponseWriter, r *http.Request) {
-		handleLogin(w, r, dbc)
+	http.HandleFunc("/processLogin", func(w http.ResponseWriter, r *http.Request) {
+		Login(w, r, dbc)
 	})
 
 	log.Println("Starting web Server on:", *addr)
