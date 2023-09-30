@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"text/template"
 
@@ -55,7 +56,7 @@ func Register(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	username := r.FormValue("id")
 	password := r.FormValue("password")
 
-	stmt, err := dbc.Conn.Prepare("INSERT INTO users (name, email, username, password) VALUES (?, ?, ?, ?)")
+	stmt, err := dbc.Conn.Prepare("INSERT INTO users (name, email, username, password, is_admin) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Printf("Failed to prepare statement: %v", err)
 		http.Error(w, "Failed to register", http.StatusInternalServerError)
@@ -71,7 +72,7 @@ func Register(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 		return
 	}
 	// 해시된 비밀번호를 데이터베이스에 저장
-	_, err = stmt.Exec(name, email, username, string(hashedPassword))
+	_, err = stmt.Exec(name, email, username, string(hashedPassword), 0) //0 은 일반 유저
 	if err != nil {
 		log.Printf("Failed to insert into database: %v", err)
 		http.Error(w, "Failed to register", http.StatusInternalServerError)
@@ -85,7 +86,7 @@ func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	username := r.FormValue("id")
 	password := r.FormValue("password")
 
-	stmt, err := dbc.Conn.Prepare("SELECT password, name, email FROM users WHERE username=?")
+	stmt, err := dbc.Conn.Prepare("SELECT password, name, email, is_admin FROM users WHERE username=?")
 	if err != nil {
 		log.Printf("Failed to prepare statement: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -94,7 +95,8 @@ func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	defer stmt.Close()
 
 	var storedPassword, name, email string
-	err = stmt.QueryRow(username).Scan(&storedPassword, &name, &email)
+	var isAdmin bool
+	err = stmt.QueryRow(username).Scan(&storedPassword, &name, &email, &isAdmin)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
@@ -112,26 +114,33 @@ func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	}
 
 	// 로그인 성공 하면 쿠키 설정
+
 	authCookie := &http.Cookie{
 		Name:  "auth",
 		Value: username,
 		Path:  "/",
 	}
+	http.SetCookie(w, authCookie)
 	nameCookie := &http.Cookie{
 		Name:  "name",
 		Value: url.QueryEscape(name),
 		Path:  "/",
 	}
+	http.SetCookie(w, nameCookie)
 	emailCookie := &http.Cookie{
 		Name:  "email",
 		Value: url.QueryEscape(email),
 		Path:  "/",
 	}
-	http.SetCookie(w, nameCookie)
 	http.SetCookie(w, emailCookie)
-	http.SetCookie(w, authCookie)
+	adminCookie := &http.Cookie{
+		Name:  "isAdmin",
+		Value: strconv.FormatBool(isAdmin), // bool 값을 string으로 변환해서 저장
+		Path:  "/",
+	}
+	http.SetCookie(w, adminCookie)
 
-	// 로그인 성공 하면 chat.html 리다이렉트
+	// chat.html 리다이렉트
 	http.Redirect(w, r, "/chat", http.StatusSeeOther)
 }
 
