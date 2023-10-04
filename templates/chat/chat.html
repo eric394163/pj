@@ -16,7 +16,7 @@
         <div id="sidebar">
             <div id="user-info">
                 <h3>사용자 정보</h3>
-                <p id="user-name">이름: 로딩</p>
+                <p id="user-ID">아이디: 로딩</p>
                 <p id="user-email">이메일: 로딩</p>
                 <button id="logout-btn">로그아웃</button> 
             </div>
@@ -67,12 +67,12 @@
         const decoded = jwt_decode(token);
 
         // 디코드된 토큰에서 사용자이름 이메일 가져오기 
-        const userName = decoded.username;
+        const userID = decoded.userID;
         const userEmail = decoded.email;
 
         // 사용자 이름과 이메일 설정
-        if (userName) {
-            $("#user-name").text(`이름: ${userName}`);
+        if (userID) {
+            $("#user-ID").text(`아이디: ${userID}`);
         }
 
         if (userEmail) {
@@ -93,7 +93,7 @@
         window.sendMessage = function() {
         let message = chatInput.val();
         if (message) {
-            socket.send(JSON.stringify({ type: 'chat', username: userName, message: message }));
+            socket.send(JSON.stringify({ type: 'chat', userID: userID, message: message }));
             chatInput.val("");
             }
         };
@@ -101,7 +101,7 @@
         socket.onmessage = function(event) {
         let incomingData = JSON.parse(event.data);
         if (incomingData.type === 'chat') {
-            chatMessages.append('<div>' + incomingData.username + ": " + incomingData.message + '</div>');
+            chatMessages.append('<div>' + incomingData.userID + ": " + incomingData.message + '</div>');
         } else if (incomingData.type === 'userList') {
             onlineUsersDiv.empty(); 
             incomingData.users.forEach(function(user) {

@@ -30,7 +30,7 @@ func (c *client) read() {
 		}
 
 		// 여기서 incomingData는 map입니다.
-		log.Printf("Received JSON message: %v", incomingData)
+		log.Printf("Received  message: %v", incomingData)
 		processedMessage, err := json.Marshal(incomingData) // 다시 JSON으로 변환
 		if err != nil {
 			log.Printf("JSON Marshal error: %v", err)
