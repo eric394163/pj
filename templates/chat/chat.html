@@ -65,7 +65,7 @@
 
         // 토큰 디코드
         const decoded = jwt_decode(token);
-
+        console.log("Decoded Token:", decoded);
         // 디코드된 토큰에서 사용자이름 이메일 가져오기 
         const userID = decoded.userID;
         const userEmail = decoded.email;

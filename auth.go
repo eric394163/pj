@@ -17,7 +17,7 @@ type authHandler struct {
 }
 
 func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("token") // 'auth' 대신 'token'을 사용
+	cookie, err := r.Cookie("token")
 	if err != nil {
 		w.Header().Set("Location", "/login")
 		w.WriteHeader(http.StatusTemporaryRedirect)
@@ -56,10 +56,10 @@ func Register(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	r.ParseForm()
 	name := r.FormValue("name")
 	email := r.FormValue("email")
-	username := r.FormValue("id")
+	userID := r.FormValue("id")
 	password := r.FormValue("password")
 
-	stmt, err := dbc.Conn.Prepare("INSERT INTO users (name, email, username, password, is_admin) VALUES (?, ?, ?, ?, ?)")
+	stmt, err := dbc.Conn.Prepare("INSERT INTO users (name, email, userID, password, is_admin) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Printf("Failed to prepare statement: %v", err)
 		http.Error(w, "Failed to register", http.StatusInternalServerError)
@@ -75,7 +75,7 @@ func Register(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 		return
 	}
 	// 해시된 비밀번호를 데이터베이스에 저장
-	_, err = stmt.Exec(name, email, username, string(hashedPassword), 0) //0 은 일반 유저
+	_, err = stmt.Exec(name, email, userID, string(hashedPassword), 0) //0 은 일반 유저
 	if err != nil {
 		log.Printf("Failed to insert into database: %v", err)
 		http.Error(w, "Failed to register", http.StatusInternalServerError)
@@ -84,10 +84,10 @@ func Register(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-func createToken(username string, email string, isAdmin bool) (string, error) {
+func createToken(userID string, email string, isAdmin bool) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
-	claims["username"] = username
+	claims["userID"] = userID
 	claims["email"] = email
 	claims["isAdmin"] = isAdmin
 	claims["auth"] = "authorized"
@@ -102,10 +102,10 @@ func createToken(username string, email string, isAdmin bool) (string, error) {
 
 func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	r.ParseForm()
-	username := r.FormValue("id")
+	userID := r.FormValue("id")
 	password := r.FormValue("password")
 
-	stmt, err := dbc.Conn.Prepare("SELECT password, name, email, is_admin FROM users WHERE username=?")
+	stmt, err := dbc.Conn.Prepare("SELECT password, name, email, is_admin FROM users WHERE userID=?")
 	if err != nil {
 		log.Printf("Failed to prepare statement: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -115,7 +115,7 @@ func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 
 	var storedPassword, name, email string
 	var isAdmin bool
-	err = stmt.QueryRow(username).Scan(&storedPassword, &name, &email, &isAdmin)
+	err = stmt.QueryRow(userID).Scan(&storedPassword, &name, &email, &isAdmin)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
@@ -132,16 +132,16 @@ func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 		return
 	}
 
-	// 로그인 성공 하면 쿠키 설정
+	// 로그인 성공 하면 토큰 설정
 
-	tokenString, err := createToken(username, email, isAdmin)
+	tokenString, err := createToken(userID, email, isAdmin)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 	authCookie := &http.Cookie{
 		Name:  "auth",
-		Value: username,
+		Value: userID,
 		Path:  "/",
 	}
 	http.SetCookie(w, authCookie)
