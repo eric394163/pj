@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>실시간 채팅 웹 애플리케이션</title>
     <link rel="stylesheet" href="/static/Styleheetchat.css">
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jquery/jquery@3.6.4/dist/jquery.min.js"></script>
+    <script src="/static/jwt-decode.js"></script>
+
+
 </head>
 <body>
     <div id="title">실시간 채팅 웹 애플리케이션</div>
@@ -36,6 +39,7 @@
         <div class="spacer"></div>
     </div>
     <script>
+
         
     function getCookie(cname) {
         const cookieArr = document.cookie.split("; ");
@@ -56,9 +60,17 @@
         let onlineUsers = $("#online-Users");
         let onlineUsersDiv = $("#user-list");
 
-        const userName = getCookie("name");
-        const userEmail = getCookie("email");
+       // 쿠키에 저장해둔 토큰 꺼내오기
+        const token = getCookie("token");
 
+        // 토큰 디코드
+        const decoded = jwt_decode(token);
+
+        // 디코드된 토큰에서 사용자이름 이메일 가져오기 
+        const userName = decoded.username;
+        const userEmail = decoded.email;
+
+        // 사용자 이름과 이메일 설정
         if (userName) {
             $("#user-name").text(`이름: ${userName}`);
         }
@@ -68,10 +80,10 @@
         }
 
         $("#logout-btn").click(function() {
-        document.cookie = "auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        document.cookie = "name=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        document.cookie = "email=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        window.location.href = "/login";
+            // 토큰을 담아둔 쿠키를 만료시키기
+            document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            
+            window.location.href = "/login";
         });
 
         socket.onopen = function(event) {
