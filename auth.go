@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"gopjex/dbcon"
 	"log"
 	"net/http"
@@ -16,18 +17,36 @@ type authHandler struct {
 }
 
 func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	_, err := r.Cookie("auth")
-	if err == http.ErrNoCookie {
+	cookie, err := r.Cookie("token") // 'auth' 대신 'token'을 사용
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	tokenString := cookie.Value
+	token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if jwt.GetSigningMethod("HS256") != token.Method {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Method)
+		}
+		return []byte("yourSecretKey"), nil
+	})
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		authValue, ok := claims["auth"]
+		if !ok || authValue != "authorized" {
+			w.Header().Set("Location", "/login")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+	} else {
 		w.Header().Set("Location", "/login")
 		w.WriteHeader(http.StatusTemporaryRedirect)
 		return
 	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+
 	h.next.ServeHTTP(w, r)
 }
+
 func MustAuth(handler http.Handler) http.Handler {
 	return &authHandler{next: handler}
 }
@@ -70,6 +89,7 @@ func createToken(username string, email string, isAdmin bool) (string, error) {
 	claims["username"] = username
 	claims["email"] = email
 	claims["isAdmin"] = isAdmin
+	claims["auth"] = "authorized"
 	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 
 	t, err := token.SignedString([]byte("yourSecretKey"))
