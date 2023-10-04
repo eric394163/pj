@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/gorilla/websocket"
@@ -20,8 +21,23 @@ func (c *client) read() {
 		if err != nil {
 			return
 		}
-		log.Printf("Received message: %s", msg)
-		c.room.forward <- msg
+
+		var incomingData map[string]interface{}
+		err = json.Unmarshal(msg, &incomingData)
+		if err != nil {
+			log.Printf("JSON Unmarshal error: %v", err)
+			return
+		}
+
+		// 여기서 incomingData는 map입니다.
+		log.Printf("Received JSON message: %v", incomingData)
+		processedMessage, err := json.Marshal(incomingData) // 다시 JSON으로 변환
+		if err != nil {
+			log.Printf("JSON Marshal error: %v", err)
+			return
+		}
+
+		c.room.forward <- processedMessage
 	}
 }
 
