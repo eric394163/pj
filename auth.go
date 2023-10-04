@@ -5,9 +5,9 @@ import (
 	"gopjex/dbcon"
 	"log"
 	"net/http"
-	"net/url"
-	"strconv"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -64,6 +64,21 @@ func Register(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
+func createToken(username string, email string, isAdmin bool) (string, error) {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["username"] = username
+	claims["email"] = email
+	claims["isAdmin"] = isAdmin
+	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+
+	t, err := token.SignedString([]byte("yourSecretKey"))
+	if err != nil {
+		return "", err
+	}
+	return t, nil
+}
+
 func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 	r.ParseForm()
 	username := r.FormValue("id")
@@ -98,31 +113,24 @@ func Login(w http.ResponseWriter, r *http.Request, dbc *dbcon.DBConnection) {
 
 	// 로그인 성공 하면 쿠키 설정
 
+	tokenString, err := createToken(username, email, isAdmin)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 	authCookie := &http.Cookie{
 		Name:  "auth",
 		Value: username,
 		Path:  "/",
 	}
 	http.SetCookie(w, authCookie)
-	nameCookie := &http.Cookie{
-		Name:  "name",
-		Value: url.QueryEscape(name),
-		Path:  "/",
-	}
-	http.SetCookie(w, nameCookie)
-	emailCookie := &http.Cookie{
-		Name:  "email",
-		Value: url.QueryEscape(email),
-		Path:  "/",
-	}
-	http.SetCookie(w, emailCookie)
-	adminCookie := &http.Cookie{
-		Name:  "isAdmin",
-		Value: strconv.FormatBool(isAdmin), // bool 값을 string으로 변환해서 저장
-		Path:  "/",
-	}
-	http.SetCookie(w, adminCookie)
 
+	// 토큰을 쿠키에 저장
+	http.SetCookie(w, &http.Cookie{
+		Name:  "token",
+		Value: tokenString,
+		Path:  "/",
+	})
 	// chat.html 리다이렉트
 	http.Redirect(w, r, "/chat", http.StatusSeeOther)
 }
