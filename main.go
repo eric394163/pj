@@ -16,6 +16,7 @@ import (
 
 var mainRoom = newRoom()
 var ismainRoomRunning = false
+var dbc *dbcon.DBConnection
 
 type templateHandler struct {
 	once     sync.Once
@@ -47,7 +48,7 @@ func DBConnection() (*dbcon.DBConnection, error) {
 func handleChat(w http.ResponseWriter, r *http.Request) {
 	if websocket.IsWebSocketUpgrade(r) {
 		if !ismainRoomRunning {
-			go mainRoom.run()
+			go mainRoom.run(dbc)
 			ismainRoomRunning = true
 		}
 		mainRoom.ServeHTTP(w, r)
@@ -61,7 +62,8 @@ func main() {
 	var addr = flag.String("addr", ":8180", "The addr of the application.")
 	flag.Parse()
 
-	dbc, err := DBConnection()
+	var err error
+	dbc, err = DBConnection()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

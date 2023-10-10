@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"gopjex/dbcon"
 	"log"
 	"net/http"
 
@@ -51,7 +52,28 @@ func (r *room) broadcastUserList() {
 	}
 }
 
-func (r *room) run() {
+func saveChatMessageToDB(dbc *dbcon.DBConnection, roomName, userID string, message json.RawMessage) {
+	sql := "INSERT INTO MAIN_Chat_Storage (roomName, userID, message) VALUES (?, ?, ?)"
+
+	stmt, err := dbc.Conn.Prepare(sql)
+	if err != nil {
+		log.Fatalf("Failed to prepare SQL: %v", err)
+		return
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(roomName, userID, message)
+	if err != nil {
+		log.Fatalf("Failed to execute SQL: %v", err)
+	}
+}
+
+func (r *room) run(dbc *dbcon.DBConnection) {
+	if dbc == nil {
+		// dbc가 nil일 경우 에러 처리
+		log.Fatalf("Received nil database connection")
+		return
+	}
 	for {
 		select {
 		case client := <-r.join:
@@ -75,9 +97,20 @@ func (r *room) run() {
 			r.broadcastUserList()
 
 		case msg := <-r.forward:
+
+			var messageData map[string]json.RawMessage
+			json.Unmarshal(msg, &messageData)
+
+			roomName, _ := json.Marshal(messageData["roomName"])
+			userID, _ := json.Marshal(messageData["userID"])
+			message, _ := json.Marshal(messageData["message"])
+
+			saveChatMessageToDB(dbc, string(roomName), string(userID), message)
+
 			for client := range r.clients {
 				client.send <- msg
 			}
+
 		}
 	}
 }

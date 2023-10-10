@@ -92,9 +92,15 @@
 
         window.sendMessage = function() {
         let message = chatInput.val();
-        if (message) {
-            socket.send(JSON.stringify({ type: 'chat', userID: userID, message: message }));
-            chatInput.val("");
+            if (message) {
+                let payload = {
+                    type: 'chat',
+                    userID: userID,  
+                    roomName: 'main',  
+                    message: message
+                };
+                socket.send(JSON.stringify(payload));
+                chatInput.val("");
             }
         };
 
