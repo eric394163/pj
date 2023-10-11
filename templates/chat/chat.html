@@ -105,17 +105,25 @@
         };
 
         socket.onmessage = function(event) {
-        let incomingData = JSON.parse(event.data);
-        if (incomingData.type === 'chat') {
-            chatMessages.append('<div>' + incomingData.userID + ": " + incomingData.message + '</div>');
-        } else if (incomingData.type === 'userList') {
-            onlineUsersDiv.empty(); 
-            incomingData.users.forEach(function(user) {
-                onlineUsersDiv.append('<div class="online-user" data-user-id="' + user + '">' + user + '</div>'); 
-            });
-        }else if (incomingData.type === 'system') { // 시스템 메시지 처리
-            chatMessages.append('<div class="system-message">' + incomingData.message + '</div>');
-        }
+            let incomingData = JSON.parse(event.data);
+            if (incomingData.type === 'chat') {
+                chatMessages.append('<div>' + incomingData.userID + ": " + incomingData.message + '</div>');
+            } else if (incomingData.type === 'userList') {
+                onlineUsersDiv.empty(); 
+                incomingData.users.forEach(function(user) {
+                    onlineUsersDiv.append('<div class="online-user" data-user-id="' + user + '">' + user + '</div>'); 
+                });
+            } else if (incomingData.type === 'system') {
+                chatMessages.append('<div class="system-message">' + incomingData.message + '</div>');
+            } else if (incomingData.type === 'chatHistory') {
+            // 채팅 히스토리 처리
+            let chatHistory = incomingData.chatHistory;
+            for (let i = 0; i < chatHistory.length; i++) {
+                let chat = chatHistory[i];
+                chatMessages.append('<div>' + chat.userID + ": " + chat.message + '</div>');
+            }
+            }
+        chatDisplay.scrollTop(chatDisplay[0].scrollHeight);
         };
 
 

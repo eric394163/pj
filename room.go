@@ -53,6 +53,10 @@ func (r *room) broadcastUserList() {
 }
 
 func saveChatMessageToDB(dbc *dbcon.DBConnection, roomName, userID string, message json.RawMessage) {
+	// 큰따옴표 제거
+	roomName = roomName[1 : len(roomName)-1]
+	userID = userID[1 : len(userID)-1]
+
 	sql := "INSERT INTO MAIN_Chat_Storage (roomName, userID, message) VALUES (?, ?, ?)"
 
 	stmt, err := dbc.Conn.Prepare(sql)
@@ -68,6 +72,93 @@ func saveChatMessageToDB(dbc *dbcon.DBConnection, roomName, userID string, messa
 	}
 }
 
+func getChatMessagesFromDB(dbc *dbcon.DBConnection, roomName string) []map[string]json.RawMessage {
+	rows, err := dbc.Conn.Query("SELECT userID, message FROM MAIN_Chat_Storage WHERE roomName = ? ORDER BY timestamp ASC", roomName)
+	if err != nil {
+		log.Fatalf("Failed to query messages: %v", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var messages []map[string]json.RawMessage
+	for rows.Next() {
+		var userID string
+		var message json.RawMessage
+		if err := rows.Scan(&userID, &message); err != nil {
+			log.Fatalf("Failed to scan message: %v", err)
+			continue
+		}
+		msg := map[string]json.RawMessage{
+			"userID":  json.RawMessage(`"` + userID + `"`),
+			"message": message,
+		}
+		messages = append(messages, msg)
+	}
+
+	//클라이언트로 메세지가 제대로 갔는지 확인하기
+	log.Printf(" %d 메세지가 %s으로 갔음", len(messages), roomName)
+
+	return messages
+}
+
+func (r *room) handleJoin(client *client, dbc *dbcon.DBConnection) {
+	r.clients[client] = true
+	r.onlineUsers[client.id] = true
+	r.broadcastUserList()
+
+	roomName := "main"
+	storedMessages := getChatMessagesFromDB(dbc, roomName)
+
+	storedMessagesJSON, err := json.Marshal(map[string]interface{}{
+		"type":        "chatHistory",
+		"chatHistory": storedMessages,
+	})
+	if err != nil {
+		log.Printf("Error marshalling storedMessages: %v", err)
+		return
+	}
+	client.send <- storedMessagesJSON
+
+	joinMessage := fmt.Sprintf("%s님이 채팅방에 접속했습니다.", client.id)
+	joinMessageJSON, err := json.Marshal(map[string]interface{}{
+		"type":    "system",
+		"message": joinMessage,
+	})
+	if err != nil {
+		log.Printf("Error marshalling joinMessage: %v", err)
+		return
+	}
+
+	for otherClient := range r.clients {
+		otherClient.send <- joinMessageJSON
+	}
+}
+
+func (r *room) handleLeave(client *client) {
+	delete(r.clients, client)
+	delete(r.onlineUsers, client.id)
+	close(client.send)
+	r.broadcastUserList()
+}
+
+func (r *room) handleForward(msg []byte, dbc *dbcon.DBConnection) {
+	var messageData map[string]json.RawMessage
+	err := json.Unmarshal(msg, &messageData)
+	if err != nil {
+		log.Printf("Error unmarshalling message: %v", err)
+		return
+	}
+
+	roomName := string(messageData["roomName"])
+	userID := string(messageData["userID"])
+	message := messageData["message"]
+	saveChatMessageToDB(dbc, roomName, userID, message)
+
+	for client := range r.clients {
+		client.send <- msg
+	}
+}
+
 func (r *room) run(dbc *dbcon.DBConnection) {
 	if dbc == nil {
 		// dbc가 nil일 경우 에러 처리
@@ -77,39 +168,13 @@ func (r *room) run(dbc *dbcon.DBConnection) {
 	for {
 		select {
 		case client := <-r.join:
-			r.clients[client] = true
-			r.onlineUsers[client.id] = true
-			r.broadcastUserList()
-
-			joinMessage := fmt.Sprintf("%s님이 채팅방에 접속했습니다.", client.id)
-			joinMessageJSON, _ := json.Marshal(map[string]interface{}{
-				"type":    "system",
-				"message": joinMessage,
-			})
-			for otherClient := range r.clients {
-				otherClient.send <- joinMessageJSON
-			}
+			r.handleJoin(client, dbc)
 
 		case client := <-r.leave:
-			delete(r.clients, client)
-			delete(r.onlineUsers, client.id)
-			close(client.send)
-			r.broadcastUserList()
+			r.handleLeave(client)
 
 		case msg := <-r.forward:
-
-			var messageData map[string]json.RawMessage
-			json.Unmarshal(msg, &messageData)
-
-			roomName, _ := json.Marshal(messageData["roomName"])
-			userID, _ := json.Marshal(messageData["userID"])
-			message, _ := json.Marshal(messageData["message"])
-
-			saveChatMessageToDB(dbc, string(roomName), string(userID), message)
-
-			for client := range r.clients {
-				client.send <- msg
-			}
+			r.handleForward(msg, dbc)
 
 		}
 	}
