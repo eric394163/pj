@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -59,9 +58,6 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	var addr = flag.String("addr", ":8180", "The addr of the application.")
-	flag.Parse()
-
 	var err error
 	dbc, err = DBConnection()
 	if err != nil {
@@ -80,8 +76,7 @@ func main() {
 		Login(w, r, dbc)
 	})
 
-	log.Println("Starting web Server on:", *addr)
-	if err := http.ListenAndServe(*addr, nil); err != nil {
+	if err := http.ListenAndServe("localhost:8180", nil); err != nil {
 		log.Fatal("Listen and Serve :", err)
 	}
 }

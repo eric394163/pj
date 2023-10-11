@@ -114,7 +114,7 @@ func (r *room) handleJoin(client *client, dbc *dbcon.DBConnection) {
 		"chatHistory": storedMessages,
 	})
 	if err != nil {
-		log.Printf("Error marshalling storedMessages: %v", err)
+		log.Printf("저장된 메세지 마샬링 에러: %v", err)
 		return
 	}
 	client.send <- storedMessagesJSON
@@ -125,7 +125,7 @@ func (r *room) handleJoin(client *client, dbc *dbcon.DBConnection) {
 		"message": joinMessage,
 	})
 	if err != nil {
-		log.Printf("Error marshalling joinMessage: %v", err)
+		log.Printf("조인 메세지 마샬링 에러: %v", err)
 		return
 	}
 
@@ -145,7 +145,7 @@ func (r *room) handleForward(msg []byte, dbc *dbcon.DBConnection) {
 	var messageData map[string]json.RawMessage
 	err := json.Unmarshal(msg, &messageData)
 	if err != nil {
-		log.Printf("Error unmarshalling message: %v", err)
+		log.Printf("메세지 마샬링 에러: %v", err)
 		return
 	}
 
@@ -160,11 +160,12 @@ func (r *room) handleForward(msg []byte, dbc *dbcon.DBConnection) {
 }
 
 func (r *room) run(dbc *dbcon.DBConnection) {
+
 	if dbc == nil {
-		// dbc가 nil일 경우 에러 처리
 		log.Fatalf("Received nil database connection")
 		return
 	}
+
 	for {
 		select {
 		case client := <-r.join:

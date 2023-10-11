@@ -25,15 +25,14 @@ func (c *client) read() {
 		var incomingData map[string]interface{}
 		err = json.Unmarshal(msg, &incomingData)
 		if err != nil {
-			log.Printf("JSON Unmarshal error: %v", err)
+			log.Printf("마샬링 에러: %v", err)
 			return
 		}
 
-		// 여기서 incomingData는 map입니다.
 		log.Printf("Received  message: %v", incomingData)
 		processedMessage, err := json.Marshal(incomingData) // 다시 JSON으로 변환
 		if err != nil {
-			log.Printf("JSON Marshal error: %v", err)
+			log.Printf("마샬링 에러: %v", err)
 			return
 		}
 
