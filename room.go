@@ -95,7 +95,7 @@ func getChatMessagesFromDB(dbc *dbcon.DBConnection, roomName string) []map[strin
 		messages = append(messages, msg)
 	}
 
-	//클라이언트로 메세지가 제대로 갔는지 확인하기
+	//클라이언트로 저장된 메세지가 제대로 갔는지 확인하기
 	log.Printf(" %d 메세지가 %s으로 갔음", len(messages), roomName)
 
 	return messages
