@@ -65,7 +65,6 @@ func main() {
 	}
 	defer dbc.Close()
 
-	http.HandleFunc("/chat", handleChat)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	http.Handle("/login", &templateHandler{filename: "login/login.html"})
 	http.Handle("/register", &templateHandler{filename: "register/register.html"})
@@ -75,6 +74,7 @@ func main() {
 	http.HandleFunc("/processLogin", func(w http.ResponseWriter, r *http.Request) {
 		Login(w, r, dbc)
 	})
+	http.HandleFunc("/chat", handleChat)
 
 	if err := http.ListenAndServe("localhost:8180", nil); err != nil {
 		log.Fatal("Listen and Serve :", err)

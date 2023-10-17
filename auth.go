@@ -93,7 +93,7 @@ func createToken(userID string, email string, isAdmin bool) (string, error) {
 	claims["auth"] = "authorized"
 	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 
-	t, err := token.SignedString([]byte("981122"))
+	t, err := token.SignedString([]byte("1102"))
 	if err != nil {
 		return "", err
 	}
