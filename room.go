@@ -11,12 +11,12 @@ import (
 )
 
 type room struct {
-	forward chan []byte
-	join    chan *client
-	leave   chan *client
-	clients map[*client]bool
+	forward chan []byte      //메세지 이동 채널
+	join    chan *client     // 클라이언트 입장
+	leave   chan *client     // 클라이언트 퇴장
+	clients map[*client]bool // 현재 채팅방에 연결된 클라이언트 (true 면 활성 상태)
 
-	onlineUsers map[string]bool
+	onlineUsers map[string]bool // 온라인 상태인 사용자 목록 맵
 }
 
 func newRoom() *room {
@@ -31,6 +31,48 @@ func newRoom() *room {
 	}
 }
 
+const (
+	socketBufferSize  = 1024
+	messageBufferSize = 256
+)
+
+var upgrader = &websocket.Upgrader{
+
+	ReadBufferSize:  socketBufferSize,
+	WriteBufferSize: socketBufferSize,
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
+// 웹소켓 연결을 설정, 새로운 클라이언트를 생성하여 채팅방에 참여시키기
+func (r *room) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	socket, err := upgrader.Upgrade(w, req, nil) // 웹소켓 연결 설정
+	if err != nil {
+		log.Fatal("ServeHTTP:", err)
+		return
+	}
+
+	authCookie, err := req.Cookie("auth")
+	if err != nil {
+		http.Error(w, "인증되지않음", http.StatusUnauthorized)
+		return
+	}
+
+	userID := authCookie.Value
+
+	//클라이언트 초기화
+	client := &client{
+		socket: socket,
+		send:   make(chan []byte, messageBufferSize),
+		room:   r,
+		id:     userID,
+	}
+	r.join <- client
+	defer func() { r.leave <- client }()
+	go client.write()
+	client.read()
+}
+
+// 접속중인 유저 목록
 func (r *room) broadcastUserList() {
 	userList := make([]string, 0, len(r.onlineUsers))
 	for user := range r.onlineUsers {
@@ -50,6 +92,46 @@ func (r *room) broadcastUserList() {
 	for client := range r.clients {
 		client.send <- userListJSON
 	}
+}
+
+func (r *room) handleJoin(client *client, dbc *dbcon.DBConnection) {
+	r.clients[client] = true // 맵에 새로 접속한 클라이언트의 정보 추가
+	r.onlineUsers[client.id] = true
+	r.broadcastUserList()
+
+	roomName := "main"
+	storedMessages := getChatMessagesFromDB(dbc, roomName) // 클라이언트가 참여한 방의 채팅내용 불러오기
+
+	storedMessagesJSON, err := json.Marshal(map[string]interface{}{
+		"type":        "chatHistory",
+		"chatHistory": storedMessages,
+	})
+	if err != nil {
+		log.Printf("저장된 메세지 마샬링 에러: %v", err)
+		return
+	}
+	client.send <- storedMessagesJSON
+
+	joinMessage := fmt.Sprintf("%s님이 채팅방에 접속했습니다.", client.id)
+	joinMessageJSON, err := json.Marshal(map[string]interface{}{
+		"type":    "system",
+		"message": joinMessage,
+	})
+	if err != nil {
+		log.Printf("조인 메세지 마샬링 에러: %v", err)
+		return
+	}
+
+	for otherClient := range r.clients {
+		otherClient.send <- joinMessageJSON
+	}
+}
+
+func (r *room) handleLeave(client *client) {
+	delete(r.clients, client)
+	delete(r.onlineUsers, client.id)
+	close(client.send)
+	r.broadcastUserList()
 }
 
 func saveChatMessageToDB(dbc *dbcon.DBConnection, roomName, userID string, message json.RawMessage) {
@@ -95,50 +177,10 @@ func getChatMessagesFromDB(dbc *dbcon.DBConnection, roomName string) []map[strin
 		messages = append(messages, msg)
 	}
 
-	//클라이언트로 저장된 메세지가 제대로 갔는지 확인하기
+	//클라이언트로 메세지가 제대로 갔는지 확인하기
 	log.Printf(" %d 메세지가 %s으로 갔음", len(messages), roomName)
 
 	return messages
-}
-
-func (r *room) handleJoin(client *client, dbc *dbcon.DBConnection) {
-	r.clients[client] = true
-	r.onlineUsers[client.id] = true
-	r.broadcastUserList()
-
-	roomName := "main"
-	storedMessages := getChatMessagesFromDB(dbc, roomName)
-
-	storedMessagesJSON, err := json.Marshal(map[string]interface{}{
-		"type":        "chatHistory",
-		"chatHistory": storedMessages,
-	})
-	if err != nil {
-		log.Printf("저장된 메세지 마샬링 에러: %v", err)
-		return
-	}
-	client.send <- storedMessagesJSON
-
-	joinMessage := fmt.Sprintf("%s님이 채팅방에 접속했습니다.", client.id)
-	joinMessageJSON, err := json.Marshal(map[string]interface{}{
-		"type":    "system",
-		"message": joinMessage,
-	})
-	if err != nil {
-		log.Printf("조인 메세지 마샬링 에러: %v", err)
-		return
-	}
-
-	for otherClient := range r.clients {
-		otherClient.send <- joinMessageJSON
-	}
-}
-
-func (r *room) handleLeave(client *client) {
-	delete(r.clients, client)
-	delete(r.onlineUsers, client.id)
-	close(client.send)
-	r.broadcastUserList()
 }
 
 func (r *room) handleForward(msg []byte, dbc *dbcon.DBConnection) {
@@ -152,6 +194,7 @@ func (r *room) handleForward(msg []byte, dbc *dbcon.DBConnection) {
 	roomName := string(messageData["roomName"])
 	userID := string(messageData["userID"])
 	message := messageData["message"]
+
 	saveChatMessageToDB(dbc, roomName, userID, message)
 
 	for client := range r.clients {
@@ -159,6 +202,7 @@ func (r *room) handleForward(msg []byte, dbc *dbcon.DBConnection) {
 	}
 }
 
+// 채팅방 코드의 메인코드
 func (r *room) run(dbc *dbcon.DBConnection) {
 
 	if dbc == nil {
@@ -179,43 +223,4 @@ func (r *room) run(dbc *dbcon.DBConnection) {
 
 		}
 	}
-}
-
-const (
-	socketBufferSize  = 1024
-	messageBufferSize = 256
-)
-
-var upgrader = &websocket.Upgrader{
-
-	ReadBufferSize:  socketBufferSize,
-	WriteBufferSize: socketBufferSize,
-	CheckOrigin:     func(r *http.Request) bool { return true },
-}
-
-func (r *room) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	socket, err := upgrader.Upgrade(w, req, nil)
-	if err != nil {
-		log.Fatal("ServeHTTP:", err)
-		return
-	}
-
-	authCookie, err := req.Cookie("auth")
-	if err != nil {
-		http.Error(w, "인증되지않음", http.StatusUnauthorized)
-		return
-	}
-
-	userID := authCookie.Value
-
-	client := &client{
-		socket: socket,
-		send:   make(chan []byte, messageBufferSize),
-		room:   r,
-		id:     userID,
-	}
-	r.join <- client
-	defer func() { r.leave <- client }()
-	go client.write()
-	client.read()
 }

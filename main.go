@@ -14,7 +14,7 @@ import (
 )
 
 var mainRoom = newRoom()
-var ismainRoomRunning = false
+var ismainRoomRunning = false // 메인채팅방의 실행 유무 확인용 변수
 var dbc *dbcon.DBConnection
 
 type templateHandler struct {
@@ -25,7 +25,7 @@ type templateHandler struct {
 
 func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.once.Do(func() {
-		t.templ = template.Must(template.ParseFiles(filepath.Join("templates", t.filename)))
+		t.templ = template.Must(template.ParseFiles(filepath.Join("templates", t.filename))) // (templates/ ?)
 	})
 	t.templ.Execute(w, nil)
 }
@@ -58,6 +58,7 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
+	//db연결
 	var err error
 	dbc, err = DBConnection()
 	if err != nil {
@@ -65,6 +66,7 @@ func main() {
 	}
 	defer dbc.Close()
 
+	//핸들러 모음
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	http.Handle("/login", &templateHandler{filename: "login/login.html"})
 	http.Handle("/register", &templateHandler{filename: "register/register.html"})
@@ -76,6 +78,7 @@ func main() {
 	})
 	http.HandleFunc("/chat", handleChat)
 
+	//서버 실행
 	if err := http.ListenAndServe("localhost:8180", nil); err != nil {
 		log.Fatal("Listen and Serve :", err)
 	}

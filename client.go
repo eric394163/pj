@@ -22,6 +22,7 @@ func (c *client) read() {
 			return
 		}
 
+		//마샬링 언마샬링 해본곳
 		var incomingData map[string]interface{}
 		err = json.Unmarshal(msg, &incomingData)
 		if err != nil {

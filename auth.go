@@ -29,7 +29,7 @@ func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if jwt.GetSigningMethod("HS256") != token.Method {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Method)
 		}
-		return []byte("1102"), nil
+		return []byte("981122"), nil
 	})
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
@@ -91,7 +91,7 @@ func createToken(userID string, email string, isAdmin bool) (string, error) {
 	claims["email"] = email
 	claims["isAdmin"] = isAdmin
 	claims["auth"] = "authorized"
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+	claims["exp"] = time.Now().Add(time.Hour * 2).Unix()
 
 	t, err := token.SignedString([]byte("1102"))
 	if err != nil {
